@@ -32,14 +32,18 @@ SCALAR_YELLOW = (0.0, 255.0, 255.0)
 SCALAR_GREEN = (0.0, 255.0, 0.0)
 SCALAR_RED = (0.0, 0.0, 255.0)
 
+# To show image or not.
+showstep_plate = False
+showstep_ocr = False
+
 def main():
-    
+    print("Loading Images ...")
     # KNN ML Model ################################################################################################################
     blnKNNTrainingSuccessful = DetectChars.loadKNNDataAndTrainKNN(CLASS_TXT_DIR, FLAT_IMG_DIR)         # attempt KNN training
 
-    if blnKNNTrainingSuccessful == False:                               # if KNN training was not successful
-        print("\nerror: KNN traning was not successful\n")  # show error message
-        return                                                          # and exit program
+    if blnKNNTrainingSuccessful == False:                               
+        print("\nerror: KNN traning was not successful\n")              
+        return                                                          
     # end if
 
     # Loading Images ##############################################################################################################
@@ -50,9 +54,9 @@ def main():
     filename = []
 
     # Write extracted plates images to path
+    print("Begin Pre-processing images ...")
     for BR_IMG in BR_IMGS:
         BR_IMG_path = DATASET_DIR + BR_IMG
-        #print(BR_IMG_path)
         imgOriginal = cv2.imread(BR_IMG_path)
         listOfPossiblePlates = DetectPlates.detectPlates(imgOriginal)
         listOfPossiblePlates = DetectChars.detectCharsInPlates(listOfPossiblePlates)
@@ -67,15 +71,21 @@ def main():
 
     # Export list of number plate to csv
     WriteNumberPlateList(numberPlateList)
+    print("Completed pre-processing and export list of number plates.")
 
     # Pre-process extracted plates and export processed image file
+    print("Begin Image Pre-processing for OCR..")
     ocr_preprocessed_plates = OCR.preprocess(extractedPlates,numberPlateList,PREPROCESSED_PLATES_DIR)
 
     # OCR the preprocessed extracted plates and export the OCR Output to csv
     OCROutput = OCR.OCR(ocr_preprocessed_plates)
+    print("Completed Image Pre-processing for OCR and export to csv.")
 
     # Accuracy result based on predicted number plate vs actual number plates
     OCR_Result = OCR.CheckOCR(OCROutput,numberPlateList)
+    
+    # Export Result to csv
+    ExportActualAndPredictedNumberPlate(numberPlateList,OCROutput)
     
     return # end of main()
 
@@ -86,7 +96,14 @@ def WriteNumberPlateList(NumberPlateList):
         writer = csv.writer(f)
         for file in NumberPlateList:
             writer.writerow([file])
+    return
 
+def ExportActualAndPredictedNumberPlate(actualNumberPlate,predictedNumberPlate):
+    header = ["Actual_Number_Plate", "Predicted_Number_Plate"]
+    with open('OCR Accuracy Result.csv','w',newline='') as f:
+        writer = csv.writer(f,delimiter =',')
+        writer.writerow(header)
+        writer.writerows(zip(actualNumberPlate,predictedNumberPlate))
     return
 
 #================================================================================

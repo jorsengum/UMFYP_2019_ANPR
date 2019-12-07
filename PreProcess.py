@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 import math
+import Main
 
 
 
@@ -18,17 +19,26 @@ CANNY_APPERTURE_SIZE = 1
 
 #############################################################################################################
 def preprocess(imgOriginal):
+    
     imgGrayscale = extractValue(imgOriginal)
+    if Main.showstep_plate:
+        cv2.imshow('imgGrayscale',imgGrayscale)
 
     imgMaxContrastGrayscale = maximizeContrast(imgGrayscale)
+    if Main.showstep_plate:    
+        cv2.imshow('imgMaxContrastGrayscale',imgMaxContrastGrayscale)
 
     height, width = imgGrayscale.shape
 
     imgBlurred = np.zeros((height, width, 1), np.uint8)
 
     imgBlurred = cv2.GaussianBlur(imgMaxContrastGrayscale, GAUSSIAN_SMOOTH_FILTER_SIZE, 0)
+    if Main.showstep_plate:
+        cv2.imshow('ImgBlurred',imgBlurred)
 
     imgThresh = cv2.adaptiveThreshold(imgBlurred, 255.0, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT)
+    if Main.showstep_plate:
+        cv2.imshow('ImgThresh',imgThresh)
 
     return imgGrayscale, imgThresh
 

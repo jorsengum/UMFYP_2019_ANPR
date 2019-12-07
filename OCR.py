@@ -7,6 +7,9 @@ import pytesseract
 import os
 import csv
 import PIL
+import Main
+import PreProcess
+from string import digits
 from PIL import Image, ImageChops
 from matplotlib import pyplot as plt
 
@@ -16,47 +19,78 @@ def preprocess(plates, plateNamelist, preprocessedDir):
     preprocessed_plates =[]
     for i, img in enumerate(plates):
 
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        # cv2.imshow('gray', gray)
+        imgGray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        if Main.showstep_ocr:
+            cv2.imshow('gray', imgGray)
 
-        ret, thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY)
         # cv2.imshow('thresh', thresh)
+        # OCR result only yield 23.76%
 
-        threshMean = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 10)
+        threshMean = cv2.adaptiveThreshold(imgGray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 10)
         # cv2.imshow('threshMean', threshMean)
+        # OCR result only yield 14.85%
 
-        threshGauss = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 51, 27)
-        
-        ratio = 200.0 / threshGauss.shape[1]
-        dim = (200, int(threshGauss.shape[0] * ratio))
+        threshGauss = cv2.adaptiveThreshold(imgGray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 51, 27)
+        if Main.showstep_ocr:
+            cv2.imshow('threshGauss',threshGauss)
 
-        resizedCubic = cv2.resize(threshGauss, dim, interpolation=cv2.INTER_CUBIC)
+        # resizing some how reduced the accuracy
+        # ratio = 200.0 / threshGauss.shape[1]
+        # dim = (200, int(threshGauss.shape[0] * ratio))
+
+        # resizedCubic = cv2.resize(threshGauss, dim, interpolation=cv2.INTER_CUBIC)
 
         img_processed = threshGauss
 
-        imgTrim = trimBlankBorder(img_processed)
+        img_processed = trimBlankBorder(img_processed)
+        if Main.showstep_ocr:
+            cv2.imshow('trimBlankBorder',img_processed)
+        
 
         bordersize = 5
         img_processed = cv2.copyMakeBorder(img_processed, top=bordersize, bottom=bordersize, left=bordersize, right=bordersize,
                                     borderType=cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        if Main.showstep_ocr:
+            cv2.imshow('Added Padding',img_processed)                                    
        
         img, cntrs, _ = cv2.findContours(img_processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        
+        
+        if Main.showstep_ocr:
+            img1 = img.copy()
+            drawbox(cntrs,img1)
+            cv2.imshow('Contours',img1)
 
         h_margin_cntrs = h_filter(cntrs,15,0.1)          # filter height margin, remove any box that is higher than average
 
+        if Main.showstep_ocr:
+            img2 = img.copy()
+            drawbox(h_margin_cntrs,img2)
+            cv2.imshow('h_filter Contours',img2)
+
         sorted_cntrs, sorted_box = sortingBox(h_margin_cntrs)
         
-        imgCrop = trimBox(sorted_box,7,2, img_processed) # list of box, padding, img to crop
+        imgCrop = trimBox(sorted_box,7,2, img_processed) # list of box, padding, img to crop, left right padding, top down padding, img to crop
 
         img_processed = imgCrop
+        if Main.showstep_ocr:
+            cv2.imshow('Cropped to Box Edge', img_processed)
 
         bordersize = 5
         img_processed = cv2.copyMakeBorder(img_processed, top=bordersize, bottom=bordersize, left=bordersize, right=bordersize,
                                     borderType=cv2.BORDER_CONSTANT, value=[255, 255, 255])
         
+        if Main.showstep_ocr:
+            cv2.imshow('Added Border 2',img_processed)
+
         cv2.imwrite(preprocessedDir + plateNamelist[i] + ".jpg", img_processed)
         
         preprocessed_plates.append(img_processed)
+        
+        if Main.showstep_ocr:
+            print("Please any key to continue...")
+            cv2.waitKey(0)
         
     return preprocessed_plates
 
@@ -74,16 +108,35 @@ def OCR(preprocessed):
 
         validChars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
                       'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
         cleanText = []
 
         for char in text:
             if char in validChars:
                 cleanText.append(char)
+        
+        if len(cleanText) == 8:
+            if cleanText[0] == "I":
+                cleanText = cleanText[1:]
+                
+            cleanText = [char for char in cleanText[:3] if not char.isdigit() and not '0'] + cleanText[3:]
+            
+            if cleanText[0] == "I":
+                cleanText = cleanText[1:]
+        
+        if len(cleanText) == 7:
+            for i, char in enumerate(cleanText[:3]):
+                if char == '0':
+                    cleanText[i] = 'O'
+                if char == '2':
+                    cleanText[i] = 'Z'
 
+        
         plate = ''.join(cleanText)
 
         OCROutput.append(plate)
+
 
     with open('OCROutput.csv','w',newline='') as f:
         writer = csv.writer(f)
@@ -131,6 +184,7 @@ def h_filter(contours,margin,ratio):
 
     for c in contours[:10]:
         x,y,w,h = cv2.boundingRect(c)
+
         aspect_ratio = h/w
 
         if aspect_ratio < ratio:
@@ -141,14 +195,16 @@ def h_filter(contours,margin,ratio):
         aspect_ratio_cntrs.append(c)
 
     avg_h = sum_h/count
+    # print(avg_h)
     
     filtered_height_contours = []
+
     for c in aspect_ratio_cntrs[:10]:
         x,y,w,h = cv2.boundingRect(c)
         h_margin = abs((h - avg_h)/avg_h*100)
 
         if h > avg_h and h_margin > margin:
-            continue    
+            continue
 
         filtered_height_contours.append(c)
 
