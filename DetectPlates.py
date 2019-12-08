@@ -43,8 +43,8 @@ def detectPlates(imgOriginal):
     # imgSuzuki, contours, npaHierarchy = cv2.findContours(imgThresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)   # find all contours
     
     if Main.showstep_plate:
-        cv2.imshow("suzuki85", imgSuzuki)
-        cv2.imshow('Canny Edge',imgCanny)
+        # cv2.imshow("suzuki85", imgSuzuki)
+        # cv2.imshow('Canny Edge',imgCanny)
 
         cv2.imshow('1',imgGray)
         cv2.imshow('2',imgThresh)

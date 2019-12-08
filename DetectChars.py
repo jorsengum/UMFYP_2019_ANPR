@@ -340,6 +340,7 @@ def recognizeCharsInPlate(imgThresh, listOfMatchingChars):
 
         if (sum(strChars.count(x)> 3 for x in strChars)):
             strChars = "_"
+        
     # end for
     return strChars
 # end function

@@ -35,12 +35,6 @@ def preprocess(plates, plateNamelist, preprocessedDir):
         if Main.showstep_ocr:
             cv2.imshow('threshGauss',threshGauss)
 
-        # resizing some how reduced the accuracy
-        # ratio = 200.0 / threshGauss.shape[1]
-        # dim = (200, int(threshGauss.shape[0] * ratio))
-
-        # resizedCubic = cv2.resize(threshGauss, dim, interpolation=cv2.INTER_CUBIC)
-
         img_processed = threshGauss
 
         img_processed = trimBlankBorder(img_processed)
@@ -62,7 +56,7 @@ def preprocess(plates, plateNamelist, preprocessedDir):
             drawbox(cntrs,img1)
             cv2.imshow('Contours',img1)
 
-        h_margin_cntrs = h_filter(cntrs,15,0.1)          # filter height margin, remove any box that is higher than average
+        h_margin_cntrs = h_filter(cntrs,17,0.1)          # filter height margin, remove any box that is higher than average
 
         if Main.showstep_ocr:
             img2 = img.copy()
